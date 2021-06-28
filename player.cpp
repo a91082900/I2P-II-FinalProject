@@ -227,7 +227,7 @@ void write_valid_spot(Point p) {
     //int n_valid_spots = next_valid_spots.size();
     //srand(time(NULL));
     
-    //cout << "result: " << next_valid_spots[action_idx] << "\n";
+     //cout << "result: " << next_valid_spots[action_idx] << "\n";
     // Choose random spot. (Not random uniform here)
     //int index = (rand() % n_valid_spots);
     //Point p = next_valid_spots[action_idx];
@@ -237,55 +237,159 @@ void write_valid_spot(Point p) {
 }
 
 int evaluate(OthelloBoard &board) {
-    if(player == OthelloBoard::BLACK)
-        return board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE];
-    else
-        return board.disc_count[OthelloBoard::WHITE] - board.disc_count[OthelloBoard::BLACK];
+    int edge[3] = {0, 0, 0};
+    int stability[3] = {0, 0, 0};
+    for(int i = 0; i < 7; i++) {
+        edge[board.board[i][0]]++;
+    }
+    for(int i = 0; i < 7; i++) {
+        edge[board.board[i][7]]++;
+    }
+    for(int j = 0; j < 7; j++) {
+        edge[board.board[0][j]]++;
+    }
+    for(int j = 0; j < 7; j++) {
+        edge[board.board[7][j]]++;
+    }
+
+    int upper_left = board.board[0][0];
+    int upper_right = board.board[0][7];
+    int lower_left = board.board[7][0];
+    int lower_right = board.board[7][7];
+    bool calc_reverse[4] = {};
+    
+    // they are counted once more
+    stability[lower_left]--, stability[lower_right]--;
+    stability[upper_left]--, stability[upper_right]--;
+ 
+    for(int j = 0; j < 8; j++) { // upper left to upper right
+        if(board.board[0][j] == upper_left) {
+            stability[upper_left]++;
+        }
+        else {
+            calc_reverse[0] = true;
+            break;
+        }
+    }
+    for(int j = 7; calc_reverse[0] && j >= 0; j--) { // upper right to upper left
+        if(board.board[0][j] == upper_right) {
+            stability[upper_right]++;
+        }
+        else {
+            break;
+        }
+    }
+    for(int i = 0; i < 8; i++) { // upper left to lower left
+        if(board.board[i][0] == upper_left) {
+            stability[upper_left]++;
+        }
+        else {
+            calc_reverse[1] = true;
+            break;
+        }
+    }
+    for(int i = 7; calc_reverse[1] && i >= 0; i--) { // lower left to upper left
+        if(board.board[i][0] == lower_left) {
+            stability[lower_left]++;
+        }
+        else {
+            break;
+        }
+    }
+    for(int j = 0; j < 8; j++) { // lower left to lower right
+        if(board.board[7][j] == lower_left) {
+            stability[lower_left]++;
+        }
+        else {
+            calc_reverse[2] = true;
+            break;
+        }
+    }
+    for(int j = 7; calc_reverse[2] && j >= 0; j--) { // lower right to lower left;
+        if(board.board[7][j] == lower_right) {
+            stability[lower_right]++;
+        }
+        else {
+            break;
+        }
+    }
+    for(int i = 0; i < 8; i++) { // upper right to lower right
+        if(board.board[i][7] == upper_right) {
+            stability[upper_right]++;
+        }
+        else {
+            calc_reverse[3] = true;
+            break;
+        }
+    }
+    for(int i = 7; calc_reverse[3] && i >= 0; i--) { // lower right to upper right
+        if(board.board[i][7] == lower_right) {
+            stability[lower_right]++;
+        }
+        else {
+            break;
+        }
+    }
+    //cout << "Stablility:\n";
+    //cout << stability[OthelloBoard::BLACK] << " " << stability[OthelloBoard::WHITE] << "\n";
+    //cout << "Edge:\n";
+    //cout << edge[OthelloBoard::BLACK] << " " << edge[OthelloBoard::WHITE] << "\n";*/
+    int edge_score = 3*(edge[OthelloBoard::BLACK] - edge[OthelloBoard::WHITE]);
+    int stability_score = (stability[OthelloBoard::BLACK] - stability[OthelloBoard::WHITE]);
+    if(player == OthelloBoard::BLACK) {
+        return edge_score+stability_score;
+;
+        //return board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE];
+    }
+    else {
+        return -edge_score-stability_score;
+        //return board.disc_count[OthelloBoard::WHITE] - board.disc_count[OthelloBoard::BLACK];
+    }
 }
 
 int minimax(OthelloBoard &board, int depth, int alpha, int beta, int cur_player) {
     if(!depth || board.next_valid_spots.empty()) {
-        //cout << "\t\tscore: " << evaluate(board) << "\n";
+         //cout << "\t\tscore: " << evaluate(board) << "\n";
         return evaluate(board);
     }
     int v, tmp_score;
-    //cout << "calling minimax with depth " << depth << "\n";
+     //cout << "calling minimax with depth " << depth << "\n";
     if(cur_player == player) { // max node
-        //cout << "\tthis is max node\n\ttraversing children:\n";
+         //cout << "\tthis is max node\n\ttraversing children:\n";
         v = MINUS_INF;
         for(size_t i = 0; i < board.next_valid_spots.size(); i++) {
             auto p = board.next_valid_spots[i];
-            //cout << "\t\tnext step: " << p << "\n";
+             //cout << "\t\tnext step: " << p << "\n";
             auto next_board = board;
             next_board.put_disc(p);
             tmp_score = minimax(next_board, depth-1, alpha, beta, 3-cur_player);
             if(tmp_score > v) {
                 v = tmp_score;
                 if(depth == DEPTH) {
-                    //cout << "back to original depth\n";
+                     //cout << "back to original depth\n";
                     action_idx = i;
                     write_valid_spot(board.next_valid_spots[i]);
                 }
             }
             alpha = std::max(v, alpha);
             if(beta <= alpha) {
-                //cout << "alpha pruning\n";
+                 //cout << "alpha pruning\n";
                 break;
             }
         }
     }
     else { // min node
         v = INF;
-        //cout << "\tthis is min node\n\ttraversing children:\n";
+         //cout << "\tthis is min node\n\ttraversing children:\n";
         for(size_t i = 0; i < board.next_valid_spots.size(); i++) {
             auto p = board.next_valid_spots[i];
-            //cout << "\t\tnext step: " << p << "\n";
+             //cout << "\t\tnext step: " << p << "\n";
             auto next_board = board;
             next_board.put_disc(p);
             v = std::min(v, minimax(next_board, depth-1, alpha, beta, 3-cur_player));
             beta = std::min(v, beta);
             if(beta <= alpha) {
-                //cout << "beta pruning\n";
+                 //cout << "beta pruning\n";
                 break;
             }
         }
