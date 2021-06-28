@@ -24,6 +24,13 @@ struct Point {
 	}
 };
 
+std::ostream& operator<<(std::ostream& os, Point p) {
+    os << "Point(" << p.x << ", " << p.y << ")";
+    return os;
+}
+
+std::string player_filename[3];
+
 class OthelloBoard {
 public:
     enum SPOT_STATE {
@@ -137,6 +144,7 @@ public:
     }
     bool put_disc(Point p) {
         if(!is_spot_valid(p)) {
+            std::cout << p << " is invalid\n";
             winner = get_next_player(cur_player);
             done = true;
             return false;
@@ -181,11 +189,11 @@ public:
         ss << "Timestep #" << (8*8-4-disc_count[EMPTY]+1) << "\n";
         ss << "O: " << disc_count[BLACK] << "; X: " << disc_count[WHITE] << "\n";
         if (fail) {
-            ss << "Winner is " << encode_player(winner) << " (Opponent performed invalid move)\n";
+            ss << "Winner is " << encode_player(winner) << "(" << player_filename[winner] << ") (Opponent performed invalid move)\n";
         } else if (next_valid_spots.size() > 0) {
             ss << encode_player(cur_player) << "'s turn\n";
         } else {
-            ss << "Winner is " << encode_player(winner) << "\n";
+            ss << "Winner is " << encode_player(winner) << "(" << player_filename[winner] << ")\n";
         }
         ss << "+---------------+\n";
         for (i = 0; i < SIZE; i++) {
@@ -254,11 +262,15 @@ void launch_executable(std::string filename) {
 int main(int argc, char** argv) {
     assert(argc == 3);
     std::ofstream log("gamelog.txt");
-    std::string player_filename[3];
+
     player_filename[1] = argv[1];
     player_filename[2] = argv[2];
+    player_filename[0] = "DRAW";
     std::cout << "Player Black File: " << player_filename[OthelloBoard::BLACK] << std::endl;
     std::cout << "Player White File: " << player_filename[OthelloBoard::WHITE] << std::endl;
+
+    log << "Player Black File: " << player_filename[OthelloBoard::BLACK] << '\n';
+    log << "Player White File: " << player_filename[OthelloBoard::WHITE] << '\n';
     OthelloBoard game;
     std::string data;
     data = game.encode_output();
