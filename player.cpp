@@ -239,32 +239,43 @@ void write_valid_spot(Point p) {
     fout.flush();
 }
 
-int evaluate(OthelloBoard &board) {
-    int we = 2, ws = 5, wc = 20, wm = 3, wcp = 0, wpm = 2;
-    if(board.turn < 15) {
-        wm = 8;
-        ws = 6;
-    }
-    else if(board.turn < 55) {
-        wc = 25;
-        we = 4;
-        ws = 5;
-    }
-    else {
-        wc = we = ws = wm = 0;
-        wcp = 1;
-    }
+int edge(OthelloBoard &board) {
     int edge[3] = {0, 0, 0};
-    int stability[3] = {0, 0, 0};
-    int corner[3] = {0, 0, 0};
+    
+    for(int i = 1; i < 7; i++) {
+        edge[board.board[i][0]]++;
+    }
+    for(int i = 1; i < 7; i++) {
+        edge[board.board[i][7]]++;
+    }
+    for(int j = 1; j < 7; j++) {
+        edge[board.board[0][j]]++;
+    }
+    for(int j = 1; j < 7; j++) {
+        edge[board.board[7][j]]++;
+    }
+    if(edge[OthelloBoard::BLACK]+edge[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) edge[OthelloBoard::BLACK]-edge[OthelloBoard::WHITE])/(edge[OthelloBoard::BLACK]+edge[OthelloBoard::WHITE]);
+    return 100 * v;
+}
+
+int mobility(OthelloBoard &board) {
     int mobility[3] = {0, 0, 0};
-    int p_mobility[3] = {0, 0, 0};
     mobility[board.cur_player] = board.next_valid_spots.size();
     
     board.cur_player = 3 - board.cur_player;
     board.next_valid_spots = board.get_valid_spots();
     mobility[board.cur_player] = board.next_valid_spots.size();
+    
+    if(mobility[OthelloBoard::BLACK]+mobility[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) mobility[OthelloBoard::BLACK]-mobility[OthelloBoard::WHITE])/(mobility[OthelloBoard::BLACK]+mobility[OthelloBoard::WHITE]);
+    return 100 * v;
+}
 
+int potential_mobility(OthelloBoard &board) {
+    int p_mobility[3] = {0, 0, 0};
     bool black_cnt, white_cnt;
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 8; j++) {
@@ -313,26 +324,19 @@ int evaluate(OthelloBoard &board) {
             }
         }
     }
+    if(p_mobility[OthelloBoard::BLACK]+p_mobility[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) p_mobility[OthelloBoard::BLACK]-p_mobility[OthelloBoard::WHITE]) / (p_mobility[OthelloBoard::BLACK]+p_mobility[OthelloBoard::WHITE]);
+    return 100 * v;
+    
+}
 
-    for(int i = 0; i < 8; i++) {
-        edge[board.board[i][0]]++;
-    }
-    for(int i = 0; i < 8; i++) {
-        edge[board.board[i][7]]++;
-    }
-    for(int j = 1; j < 7; j++) {
-        edge[board.board[0][j]]++;
-    }
-    for(int j = 1; j < 7; j++) {
-        edge[board.board[7][j]]++;
-    }
-
+int stability(OthelloBoard &board) {
+    int stability[3] = {0, 0, 0};
     int upper_left = board.board[0][0];
     int upper_right = board.board[0][7];
     int lower_left = board.board[7][0];
     int lower_right = board.board[7][7];
-    corner[upper_left]++, corner[upper_right]++;
-    corner[lower_left]++, corner[lower_right]++;
     bool calc_reverse[4] = {};
     
     // they are counted once more
@@ -407,25 +411,59 @@ int evaluate(OthelloBoard &board) {
             break;
         }
     }
-    /*cout << "Stablility:\n";
-    //cout << stability[OthelloBoard::BLACK] << " " << stability[OthelloBoard::WHITE] << "\n";
-    //cout << "Edge:\n";
-    //cout << edge[OthelloBoard::BLACK] << " " << edge[OthelloBoard::WHITE] << "\n";*/
-    int edge_score = we*(edge[OthelloBoard::BLACK] - edge[OthelloBoard::WHITE]);
-    int stability_score = ws*(stability[OthelloBoard::BLACK] - stability[OthelloBoard::WHITE]);
-    int corner_score = wc*(corner[OthelloBoard::BLACK] - corner[OthelloBoard::WHITE]);
-    int mobility_score = wm*(mobility[OthelloBoard::BLACK] - mobility[OthelloBoard::WHITE]);
-    int p_mobility_score = wpm * (p_mobility[OthelloBoard::BLACK] - p_mobility[OthelloBoard::WHITE]);
-    int coin_parity_score = wcp * (board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE]);
-    if(player == OthelloBoard::BLACK) {
-        return edge_score+stability_score+corner_score+p_mobility_score+mobility_score+coin_parity_score;
-;
-        //return board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE];
+    if(stability[OthelloBoard::BLACK]+stability[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) stability[OthelloBoard::BLACK]-stability[OthelloBoard::WHITE]) / (stability[OthelloBoard::BLACK]+stability[OthelloBoard::WHITE]);
+    return 100 * v;
+}
+
+int corner(OthelloBoard &board) {
+    int corner[3] = {0, 0, 0};
+    corner[board.board[0][0]]++, corner[board.board[0][7]]++;
+    corner[board.board[7][0]]++, corner[board.board[7][7]]++;
+    if(corner[OthelloBoard::BLACK]+corner[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) corner[OthelloBoard::BLACK]-corner[OthelloBoard::WHITE]) / (corner[OthelloBoard::BLACK]+corner[OthelloBoard::WHITE]);
+    return 100 * v;
+}
+
+int coin_parity(OthelloBoard &board) {
+    int coin_parity[3] = {0, board.disc_count[1], board.disc_count[2]};
+    if(coin_parity[OthelloBoard::BLACK]+coin_parity[OthelloBoard::WHITE] == 0)
+        return 0;
+    double v = ( (double) coin_parity[OthelloBoard::BLACK]-coin_parity[OthelloBoard::WHITE]) / (coin_parity[OthelloBoard::BLACK]+coin_parity[OthelloBoard::WHITE]);
+    return 100 * v;
+}
+
+int evaluate(OthelloBoard &board) {
+    int v;
+    if(board.turn < 15) {
+        v = 25 * corner(board) +
+            100 * mobility(board) +
+            100 * potential_mobility(board) +
+            25 * coin_parity(board) +
+            10 * edge(board) +
+            25 * stability(board);
+    }
+    else if(board.turn < 55) {
+        v = 100 * corner(board) + 
+            25 * mobility(board) +
+            25 * potential_mobility(board) +
+            20 * edge(board) +
+            //25 * coin_parity(board) + 
+            100 * stability(board);
     }
     else {
-        return -edge_score-stability_score-corner_score-p_mobility_score-mobility_score-coin_parity_score;
-        //return board.disc_count[OthelloBoard::WHITE] - board.disc_count[OthelloBoard::BLACK];
+        v = 100 * corner(board) + 
+            //5 * mobility(board) +
+            200 * coin_parity(board) +
+            100 * stability(board);
     }
+
+    if(player == OthelloBoard::BLACK)
+        return v;
+    else
+        return -v;
 }
 
 int minimax(OthelloBoard &board, int depth, int alpha, int beta, int cur_player) {
