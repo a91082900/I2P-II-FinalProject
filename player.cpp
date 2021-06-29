@@ -6,7 +6,7 @@
 #include <ctime>
 #define INF 100000
 #define MINUS_INF -100000
-#define DEPTH 5
+#define DEPTH 6
 
 using std::cout;
 using std::vector;
@@ -15,7 +15,8 @@ struct Point {
     int x, y;
 	Point() : Point(0, 0) {}
 	Point(float x, float y) : x(x), y(y) {}
-	bool operator==(const Point& rhs) const {
+	Point(int x, int y) : x(x), y(y) {}
+    bool operator==(const Point& rhs) const {
 		return x == rhs.x && y == rhs.y;
 	}
 	bool operator!=(const Point& rhs) const {
@@ -61,6 +62,7 @@ public:
     int cur_player;
     bool done;
     int winner;
+    int turn;
 private:
     int get_next_player(int player) const {
         return 3 - player;
@@ -128,15 +130,16 @@ public:
         disc_count[EMPTY] = 0;
         disc_count[BLACK] = 0;
         disc_count[WHITE] = 0;
+        turn = -4;
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 board[i][j] = b[i][j];
                 if(b[i][j] == EMPTY)
                     disc_count[EMPTY]++;
                 else if(b[i][j] == BLACK)
-                    disc_count[BLACK]++;
+                    disc_count[BLACK]++, turn++;
                 else
-                    disc_count[WHITE]++;
+                    disc_count[WHITE]++, turn++;
             }
         }
         this->cur_player = cur_player;
@@ -159,6 +162,7 @@ public:
         next_valid_spots = get_valid_spots();
         done = false;
         winner = -1;
+        turn = 0;
     }
     std::vector<Point> get_valid_spots() const {
         std::vector<Point> valid_spots;
@@ -236,26 +240,90 @@ void write_valid_spot(Point p) {
 }
 
 int evaluate(OthelloBoard &board) {
+    int we = 2, ws = 5, wc = 20, wm = 3, wcp = 0, wpm = 2;
+    if(board.turn < 15) {
+        wm = 8;
+        ws = 6;
+    }
+    else if(board.turn < 55) {
+        wc = 25;
+        we = 4;
+        ws = 5;
+    }
+    else {
+        wc = we = ws = wm = 0;
+        wcp = 1;
+    }
     int edge[3] = {0, 0, 0};
     int stability[3] = {0, 0, 0};
     int corner[3] = {0, 0, 0};
     int mobility[3] = {0, 0, 0};
+    int p_mobility[3] = {0, 0, 0};
     mobility[board.cur_player] = board.next_valid_spots.size();
     
     board.cur_player = 3 - board.cur_player;
     board.next_valid_spots = board.get_valid_spots();
     mobility[board.cur_player] = board.next_valid_spots.size();
 
-    for(int i = 0; i < 7; i++) {
+    bool black_cnt, white_cnt;
+    for(int i = 0; i < 8; i++) {
+        for(int j = 0; j < 8; j++) {
+            if(board.board[i][j] == OthelloBoard::EMPTY) {
+                black_cnt = white_cnt = true;
+                if(i+1 < 8) {
+                    if(white_cnt && board.board[i+1][j] == OthelloBoard::BLACK) {
+                        p_mobility[OthelloBoard::WHITE]++;
+                        white_cnt = false;
+                    }
+                    if(black_cnt && board.board[i+1][j] == OthelloBoard::WHITE) {
+                        p_mobility[OthelloBoard::BLACK]++;
+                        black_cnt = false;
+                    }
+                }
+                if(i-1 >= 0) {
+                    if(white_cnt && board.board[i-1][j] == OthelloBoard::BLACK) {
+                        p_mobility[OthelloBoard::WHITE]++;
+                        white_cnt = false;
+                    }
+                    if(black_cnt && board.board[i-1][j] == OthelloBoard::WHITE) {
+                        p_mobility[OthelloBoard::BLACK]++;
+                        black_cnt = false;
+                    }
+                }
+                if(j+1 < 8) {
+                    if(white_cnt && board.board[i][j+1] == OthelloBoard::BLACK) {
+                        p_mobility[OthelloBoard::WHITE]++;
+                        white_cnt = false;
+                    }
+                    if(black_cnt && board.board[i][j+1] == OthelloBoard::WHITE) {
+                        p_mobility[OthelloBoard::BLACK]++;
+                        black_cnt = false;
+                    }
+                }
+                if(j-1 >= 0) {
+                    if(white_cnt && board.board[i][j-1] == OthelloBoard::BLACK) {
+                        p_mobility[OthelloBoard::WHITE]++;
+                        white_cnt = false;
+                    }
+                    if(black_cnt && board.board[i][j-1] == OthelloBoard::WHITE) {
+                        p_mobility[OthelloBoard::BLACK]++;
+                        black_cnt = false;
+                    }
+                }
+            }
+        }
+    }
+
+    for(int i = 0; i < 8; i++) {
         edge[board.board[i][0]]++;
     }
-    for(int i = 0; i < 7; i++) {
+    for(int i = 0; i < 8; i++) {
         edge[board.board[i][7]]++;
     }
-    for(int j = 0; j < 7; j++) {
+    for(int j = 1; j < 7; j++) {
         edge[board.board[0][j]]++;
     }
-    for(int j = 0; j < 7; j++) {
+    for(int j = 1; j < 7; j++) {
         edge[board.board[7][j]]++;
     }
 
@@ -343,17 +411,19 @@ int evaluate(OthelloBoard &board) {
     //cout << stability[OthelloBoard::BLACK] << " " << stability[OthelloBoard::WHITE] << "\n";
     //cout << "Edge:\n";
     //cout << edge[OthelloBoard::BLACK] << " " << edge[OthelloBoard::WHITE] << "\n";*/
-    int edge_score = 3*(edge[OthelloBoard::BLACK] - edge[OthelloBoard::WHITE]);
-    int stability_score = (stability[OthelloBoard::BLACK] - stability[OthelloBoard::WHITE]);
-    int corner_score = 32*(corner[OthelloBoard::BLACK] - corner[OthelloBoard::WHITE]);
-    int mobility_score = (mobility[OthelloBoard::BLACK] - mobility[OthelloBoard::WHITE]);
+    int edge_score = we*(edge[OthelloBoard::BLACK] - edge[OthelloBoard::WHITE]);
+    int stability_score = ws*(stability[OthelloBoard::BLACK] - stability[OthelloBoard::WHITE]);
+    int corner_score = wc*(corner[OthelloBoard::BLACK] - corner[OthelloBoard::WHITE]);
+    int mobility_score = wm*(mobility[OthelloBoard::BLACK] - mobility[OthelloBoard::WHITE]);
+    int p_mobility_score = wpm * (p_mobility[OthelloBoard::BLACK] - p_mobility[OthelloBoard::WHITE]);
+    int coin_parity_score = wcp * (board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE]);
     if(player == OthelloBoard::BLACK) {
-        return edge_score+stability_score+corner_score+mobility_score;
+        return edge_score+stability_score+corner_score+p_mobility_score+mobility_score+coin_parity_score;
 ;
         //return board.disc_count[OthelloBoard::BLACK] - board.disc_count[OthelloBoard::WHITE];
     }
     else {
-        return -edge_score-stability_score-corner_score-mobility_score;
+        return -edge_score-stability_score-corner_score-p_mobility_score-mobility_score-coin_parity_score;
         //return board.disc_count[OthelloBoard::WHITE] - board.disc_count[OthelloBoard::BLACK];
     }
 }
