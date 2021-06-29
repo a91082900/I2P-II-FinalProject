@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <cassert>
+#include <chrono>
 
 struct Point {
     int x, y;
@@ -30,6 +31,9 @@ std::ostream& operator<<(std::ostream& os, Point p) {
 }
 
 std::string player_filename[3];
+std::chrono::steady_clock::time_point begin, next, next_;
+// Timeout is set to 10 when TA test your code.
+const int timeout = 10;
 
 class OthelloBoard {
 public:
@@ -186,7 +190,16 @@ public:
     std::string encode_output(bool fail=false) {
         int i, j;
         std::stringstream ss;
+        next_ = std::chrono::steady_clock::now();
+        double time = std::chrono::duration_cast<std::chrono::microseconds>(next_ - next).count() / 1000000.0;
         ss << "Timestep #" << (8*8-4-disc_count[EMPTY]+1) << "\n";
+        ss << "time elapsed: " << std::chrono::duration_cast<std::chrono::microseconds>(next_ - begin).count() / 1000000.0 << " s\n";
+        ss << "last step: " << time << " s";
+        if(time > timeout-0.1) {
+            ss << "(timeout)";
+        }
+        ss << "\n";
+        next = next_;
         ss << "O: " << disc_count[BLACK] << "; X: " << disc_count[WHITE] << "\n";
         if (fail) {
             ss << "Winner is " << encode_player(winner) << "(" << player_filename[winner] << ") (Opponent performed invalid move)\n";
@@ -239,8 +252,6 @@ public:
 const std::string file_log = "gamelog.txt";
 const std::string file_state = "state";
 const std::string file_action = "action";
-// Timeout is set to 10 when TA test your code.
-const int timeout = 1;
 
 void launch_executable(std::string filename) {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -262,7 +273,7 @@ void launch_executable(std::string filename) {
 int main(int argc, char** argv) {
     assert(argc == 3);
     std::ofstream log("gamelog.txt");
-
+    begin = next = std::chrono::steady_clock::now();
     player_filename[1] = argv[1];
     player_filename[2] = argv[2];
     player_filename[0] = "DRAW";
